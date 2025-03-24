@@ -1,18 +1,25 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { TodoList } from './components/TodoList';
-import { Container, Typography, CssBaseline } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 
 function App() {
+  const [darkMode, setDarkMode] = useState(false);
+
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: darkMode ? 'dark' : 'light',
+        },
+      }),
+    [darkMode]
+  );
+
   return (
-    <>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container>
-        <Typography variant="h3" component="h1" align="center" gutterBottom sx={{ mt: 4 }}>
-          Todo App
-        </Typography>
-        <TodoList />
-      </Container>
-    </>
+      <TodoList darkMode={darkMode} setDarkMode={setDarkMode} />
+    </ThemeProvider>
   );
 }
 
