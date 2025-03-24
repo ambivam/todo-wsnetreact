@@ -4,9 +4,11 @@ import {
     IconButton, Checkbox, TextField, Button, Box, Paper,
     Select, MenuItem, FormControl, InputLabel,
     Chip, Stack, Typography, SelectChangeEvent,
-    Alert, Snackbar
+    Alert, Snackbar, Dialog, DialogTitle,
+    DialogContent, DialogActions
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import axios, { AxiosError } from 'axios';
 import { Todo, categories } from '../types/Todo';
 
@@ -29,6 +31,12 @@ export const TodoList = () => {
     const [selectedCategory, setSelectedCategory] = useState<string>('Work');
     const [filterCategory, setFilterCategory] = useState<string>('all');
     const [error, setError] = useState<string | null>(null);
+    
+    // Edit mode state
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editCategory, setEditCategory] = useState('');
 
     useEffect(() => {
         fetchTodos();
@@ -97,6 +105,40 @@ export const TodoList = () => {
 
     const handleCategoryChange = (event: SelectChangeEvent) => {
         setSelectedCategory(event.target.value);
+    };
+
+    // Edit functionality
+    const openEditDialog = (todo: Todo) => {
+        setEditingTodo(todo);
+        setEditTitle(todo.title);
+        setEditCategory(todo.category);
+        setEditDialogOpen(true);
+    };
+
+    const closeEditDialog = () => {
+        setEditDialogOpen(false);
+        setEditingTodo(null);
+        setEditTitle('');
+        setEditCategory('');
+    };
+
+    const handleEditSubmit = async () => {
+        if (!editingTodo || !editTitle.trim()) return;
+
+        try {
+            await axios.put(`${API_BASE_URL}/todo/${editingTodo.id}`, {
+                ...editingTodo,
+                title: editTitle,
+                category: editCategory
+            });
+            fetchTodos();
+            closeEditDialog();
+            setError(null);
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+            console.error('Error updating todo:', error);
+            setError(`Failed to update todo: ${errorMessage}`);
+        }
     };
 
     const filteredTodos = filterCategory === 'all' 
@@ -202,6 +244,13 @@ export const TodoList = () => {
                             <ListItemSecondaryAction>
                                 <IconButton
                                     edge="end"
+                                    onClick={() => openEditDialog(todo)}
+                                    sx={{ mr: 1 }}
+                                >
+                                    <EditIcon />
+                                </IconButton>
+                                <IconButton
+                                    edge="end"
                                     onClick={() => deleteTodo(todo.id)}
                                 >
                                     <DeleteIcon />
@@ -211,6 +260,42 @@ export const TodoList = () => {
                     ))}
                 </List>
             </Paper>
+
+            {/* Edit Dialog */}
+            <Dialog open={editDialogOpen} onClose={closeEditDialog}>
+                <DialogTitle>Edit Todo</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1, minWidth: 300 }}>
+                        <TextField
+                            fullWidth
+                            label="Title"
+                            value={editTitle}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditTitle(e.target.value)}
+                            variant="outlined"
+                        />
+                        <FormControl fullWidth>
+                            <InputLabel>Category</InputLabel>
+                            <Select
+                                value={editCategory}
+                                onChange={(e: SelectChangeEvent) => setEditCategory(e.target.value)}
+                                label="Category"
+                            >
+                                {categories.map((category) => (
+                                    <MenuItem key={category} value={category}>
+                                        {category}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeEditDialog}>Cancel</Button>
+                    <Button onClick={handleEditSubmit} variant="contained" color="primary">
+                        Save
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 };
