@@ -7,6 +7,8 @@ namespace TodoApi.Models
         public bool IsCompleted { get; set; }
         public DateTime CreatedAt { get; set; }
         public required string Category { get; set; }
+        public int UserId { get; set; }
+        public User? User { get; set; }
     }
 
     public static class Categories

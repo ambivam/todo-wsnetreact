@@ -23,6 +23,9 @@ const API_BASE_URL = 'http://localhost:5141/api';
 interface TodoListProps {
     darkMode: boolean;
     setDarkMode: (darkMode: boolean) => void;
+    token: string;
+    username: string;
+    onLogout: () => void;
 }
 
 const getErrorMessage = (error: unknown) => {
@@ -36,7 +39,7 @@ const getErrorMessage = (error: unknown) => {
     return 'An unexpected error occurred';
 };
 
-export const TodoList = ({ darkMode, setDarkMode }: TodoListProps) => {
+export const TodoList = ({ darkMode, setDarkMode, token, username, onLogout }: TodoListProps) => {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [newTodo, setNewTodo] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string>('Work');
@@ -53,21 +56,33 @@ export const TodoList = ({ darkMode, setDarkMode }: TodoListProps) => {
     const [editCategory, setEditCategory] = useState('');
 
     useEffect(() => {
+        const fetchTodos = async () => {
+            try {
+                const response = await axios.get(`${API_BASE_URL}/todo`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                console.log('API Response:', response.data);
+                setTodos(response.data);
+                setError(null);
+            } catch (error: unknown) {
+                if (axios.isAxiosError(error)) {
+                    console.error('Full error object:', error);
+                    console.error('Error status:', error.response?.status);
+                    console.error('Error data:', error.response?.data);
+                    const errorMessage = getErrorMessage(error);
+                    console.error('Error details:', error);
+                    setError(`Failed to fetch todos: ${errorMessage}`);
+                } else {
+                    console.error('Unexpected error:', error);
+                    setError('An unexpected error occurred');
+                }
+            }
+        };
         fetchTodos();
-    }, []);
-
-    const fetchTodos = async () => {
-        try {
-            const response = await axios.get(`${API_BASE_URL}/todo`);
-            console.log('API Response:', response.data);
-            setTodos(response.data);
-            setError(null);
-        } catch (error) {
-            const errorMessage = getErrorMessage(error);
-            console.error('Error details:', error);
-            setError(`Failed to fetch todos: ${errorMessage}`);
-        }
-    };
+    }, [token]);
 
     const addTodo = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -78,42 +93,72 @@ export const TodoList = ({ darkMode, setDarkMode }: TodoListProps) => {
                 title: newTodo,
                 isCompleted: false,
                 category: selectedCategory
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
             console.log('Add todo response:', response.data);
             setNewTodo('');
-            fetchTodos();
+            setTodos([...todos, response.data]);
             setError(null);
-        } catch (error) {
-            const errorMessage = getErrorMessage(error);
-            console.error('Error adding todo:', error);
-            setError(`Failed to add todo: ${errorMessage}`);
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const errorMessage = getErrorMessage(error);
+                console.error('Error adding todo:', error);
+                setError(`Failed to add todo: ${errorMessage}`);
+            } else {
+                console.error('Unexpected error:', error);
+                setError('An unexpected error occurred');
+            }
         }
     };
 
     const toggleTodo = async (todo: Todo) => {
         try {
-            await axios.put(`${API_BASE_URL}/todo/${todo.id}`, {
+            const response = await axios.put(`${API_BASE_URL}/todo/${todo.id}`, {
                 ...todo,
                 isCompleted: !todo.isCompleted
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
-            fetchTodos();
+            setTodos(todos.map(t => t.id === todo.id ? response.data : t));
             setError(null);
-        } catch (error) {
-            const errorMessage = getErrorMessage(error);
-            console.error('Error updating todo:', error);
-            setError(`Failed to update todo: ${errorMessage}`);
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const errorMessage = getErrorMessage(error);
+                console.error('Error updating todo:', error);
+                setError(`Failed to update todo: ${errorMessage}`);
+            } else {
+                console.error('Unexpected error:', error);
+                setError('An unexpected error occurred');
+            }
         }
     };
 
     const deleteTodo = async (id: number) => {
         try {
-            await axios.delete(`${API_BASE_URL}/todo/${id}`);
-            fetchTodos();
+            await axios.delete(`${API_BASE_URL}/todo/${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            setTodos(todos.filter(t => t.id !== id));
             setError(null);
-        } catch (error) {
-            const errorMessage = getErrorMessage(error);
-            console.error('Error deleting todo:', error);
-            setError(`Failed to delete todo: ${errorMessage}`);
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const errorMessage = getErrorMessage(error);
+                console.error('Error deleting todo:', error);
+                setError(`Failed to delete todo: ${errorMessage}`);
+            } else {
+                console.error('Unexpected error:', error);
+                setError('An unexpected error occurred');
+            }
         }
     };
 
@@ -144,14 +189,24 @@ export const TodoList = ({ darkMode, setDarkMode }: TodoListProps) => {
                 ...editingTodo,
                 title: editTitle,
                 category: editCategory
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             });
-            fetchTodos();
+            setTodos(todos.map(t => t.id === editingTodo.id ? { ...editingTodo, title: editTitle, category: editCategory } : t));
             closeEditDialog();
             setError(null);
-        } catch (error) {
-            const errorMessage = getErrorMessage(error);
-            console.error('Error updating todo:', error);
-            setError(`Failed to update todo: ${errorMessage}`);
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const errorMessage = getErrorMessage(error);
+                console.error('Error updating todo:', error);
+                setError(`Failed to update todo: ${errorMessage}`);
+            } else {
+                console.error('Unexpected error:', error);
+                setError('An unexpected error occurred');
+            }
         }
     };
 
@@ -228,15 +283,25 @@ export const TodoList = ({ darkMode, setDarkMode }: TodoListProps) => {
                     title: todo.title,
                     category: todo.category,
                     isCompleted: todo.isCompleted
+                }, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
                 });
             }
 
-            fetchTodos();
+            setTodos([...todos, ...importedTodos]);
             handleImportDialogClose();
             setError(null);
-        } catch (error) {
-            const errorMessage = getErrorMessage(error);
-            setError(`Failed to import todos: ${errorMessage}`);
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const errorMessage = getErrorMessage(error);
+                setError(`Failed to import todos: ${errorMessage}`);
+            } else {
+                console.error('Unexpected error:', error);
+                setError('An unexpected error occurred');
+            }
         }
     };
 
@@ -259,13 +324,12 @@ export const TodoList = ({ darkMode, setDarkMode }: TodoListProps) => {
     };
 
     return (
-        <Container>
-            <Typography variant="h3" component="h1" align="center" gutterBottom sx={{ mt: 4 }}>
-                Todo App
-            </Typography>
-            
-            <Box sx={{ maxWidth: 800, margin: 'auto', mt: 4, p: 2 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Container maxWidth="md" sx={{ mt: 4 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h4" component="h1">
+                    Welcome, {username}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2 }}>
                     <FormControlLabel
                         control={
                             <Switch
@@ -277,6 +341,18 @@ export const TodoList = ({ darkMode, setDarkMode }: TodoListProps) => {
                         }
                         label={darkMode ? "Dark Mode" : "Light Mode"}
                     />
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        onClick={onLogout}
+                    >
+                        Logout
+                    </Button>
+                </Box>
+            </Box>
+
+            <Box sx={{ maxWidth: 800, margin: 'auto', mt: 4, p: 2 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
                     <IconButton onClick={handleMenuOpen}>
                         <MoreVertIcon />
                     </IconButton>
